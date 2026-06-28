@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tiệm Cận(Beta) - cd:Bui</title>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            --bg-color: #050505; 
+            --panel-bg: #121212; /* Đen nhẹ tối ưu cho màn hình OLED/AMOLED di động */
+            --text-color: #f1f5f9;
+            --primary: #00e5ff; 
+            --correct: #10b981;
+            --wrong: #ef4444;
+            --skip: #f59e0b;
+            --neon-glow: rgba(0, 229, 255, 0.3);
+        }
+
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent; /* Tắt viền xanh mặc định của điện thoại khi chạm nút */
+        }
+
+        body, html { 
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            width: 100%;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* --- LÁ RƠI TRÊN DI ĐỘNG (Giảm mật độ để mượt máy) --- */
+        #falling-layer { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+        .leaf { position: absolute; top: -30px; opacity: 0.6; filter: drop-shadow(0 0 3px var(--primary)); animation: fall linear forwards; }
+        @keyframes fall { 0% { transform: translateY(-30px) rotate(0); opacity: 0;} 10% { opacity: 0.6;} 90% { opacity: 0.6;} 100% { transform: translateY(105vh) rotate(180deg); opacity: 0;} }
+
+        /* --- BẢNG ĐIỀU KHIỂN GÓC TRÊN (Dạng Icon rút gọn cho Mobile) --- */
+        .top-bar {
+            position: absolute; top: 12px; left: 12px; right: 12px;
+            display: flex; justify-content: space-between; z-index: 100;
+        }
+        .btn-icon {
+            background: var(--panel-bg); border: 1px solid var(--primary); color: var(--primary);
+            padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 14px;
+            box-shadow: 0 0 8px var(--neon-glow); font-weight: bold;
+        }
+
+        /* --- KHUNG TỔNG THỂ MOBILE --- */
+        .mobile-wrapper {
+            width: 100%;
+            min-height: 100vh;
+            padding: 65px 12px 20px 12px; /* Dành chỗ trống phía trên cho thanh top-bar */
+            display: flex; justify-content: center; align-items: center;
+            z-index: 10; position: relative;
+        }
+
+        .container {
+            position: relative;
+            background-color: var(--panel-bg);
+            padding: 25px 15px;
+            border-radius: 14px;
+            width: 100%; max-width: 480px; /* Định hình khung vừa vặn chuẩn mọi loại smartphone */
+            box-shadow: 0 0 20px var(--neon-glow);
+            border: 1px solid var(--neon-glow);
+            overflow: hidden;
+        }
+
+        /* Viền hoa di chuyển tinh giản bớt chữ để tránh đè chữ trên màn hình hẹp */
+        .floral-border {
+            position: absolute; font-size: 11px; white-space: nowrap; pointer-events: none;
+            letter-spacing: 3px; opacity: 0.7; color: #fff; text-shadow: 0 0 8px var(--primary);
+        }
+        .floral-top { top: 4px; left: 0; animation: scrollX 20s linear infinite; }
+        .floral-bottom { bottom: 4px; right: 0; animation: scrollX 20s linear infinite reverse; }
+        
+        @keyframes scrollX { 0% { transform: translateX(-50%); } 100% { transform: translateX(0); } }
+
+        /* --- HIỆU ỨNG CHUYỂN CÂU MƯỢT MÀ --- */
+        .content { text-align: center; animation: slideUpMobile 0.4s cubic-bezier(0.1, 0.8, 0.3, 1); }
+        @keyframes slideUpMobile { 0% { opacity: 0; transform: translateY(15px); } 100% { opacity: 1; transform: translateY(0); } }
+
+        h1 { font-size: 18px; color: var(--primary); margin-bottom: 15px; text-shadow: 0 0 8px var(--neon-glow); letter-spacing: 1px; text-transform: uppercase; }
+        
+        .math-box {
+            background: rgba(0,0,0,0.5); padding: 15px; border-radius: 10px; font-size: 20px;
+            margin-bottom: 20px; border: 1px solid rgba(0, 229, 255, 0.2);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8); display: flex; justify-content: center;
+        }
+
+        /* --- BỐ CỤC DỌC CHO KHUNG CÂU HỎI MOBILE --- */
+        .questions-layout { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
+        .question-panel { background: rgba(255,255,255,0.01); border: 1px solid rgba(255,255,255,0.03); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; }
+        .question-panel h3 { color: #bbb; margin-bottom: 10px; font-size: 14px; border-bottom: 1px solid var(--primary); padding-bottom: 3px; width: fit-content; align-self: center; }
+        .options-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+
+        /* Nút lớn, dễ bấm chuẩn ngón tay di động */
+        .btn-opt {
+            background: rgba(0,0,0,0.4); border: 1px solid #2a2a2a; color: var(--text-color);
+            padding: 14px; border-radius: 8px; font-size: 15px; cursor: pointer; transition: background 0.2s;
+            outline: none;
+        }
+        .btn-opt.correct { border-color: var(--correct)!important; background: rgba(16,185,129,0.15)!important; box-shadow: 0 0 12px rgba(16,185,129,0.4)!important; color: var(--correct); font-weight: bold;}
+        .btn-opt.wrong { border-color: var(--wrong)!important; background: rgba(239,68,68,0.1)!important; opacity: 0.5; }
+
+        /* --- ĐIỀU KHIỂN DƯỚI --- */
+        .controls { display: flex; gap: 12px; justify-content: center; }
+        .btn { flex: 1; padding: 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; text-transform: uppercase; font-size: 14px; letter-spacing: 0.5px; }
+        .btn-skip { background: transparent; border: 1px solid var(--skip); color: var(--skip); }
+        .btn-next { background: var(--primary); color: #000; display: none; box-shadow: 0 0 12px var(--neon-glow); }
+
+        /* --- OVERLAY LỊCH SỬ & THÔNG TIN --- */
+        .overlay-panel {
+            position: fixed; inset: 0; background: rgba(5,5,5,0.98); z-index: 200;
+            display: none; flex-direction: column; padding: 20px 15px; overflow-y: auto;
+        }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--primary); padding-bottom: 10px; }
+        .btn-back { background: transparent; border: none; color: var(--primary); font-size: 18px; cursor: pointer; font-weight: bold; }
+        
+        .history-list { display: grid; gap: 10px; width: 100%; }
+        .history-item { background: var(--panel-bg); border: 1px solid #222; padding: 12px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 15px;}
+
+        /* CÀI ĐẶT ÂM THANH TRÊN MOBILE */
+        .sound-settings { display: flex; flex-direction: column; align-items: center; gap: 25px; margin-top: 30px; }
+        .volume-control { display: flex; align-items: center; gap: 15px; font-size: 18px; width: 100%; }
+        input[type=range] { flex: 1; accent-color: var(--primary); height: 6px; cursor: pointer; }
+        .btn-mute-toggle {
+            background: var(--primary); color: #000; padding: 12px 24px; border: none;
+            border-radius: 8px; font-size: 16px; font-weight: bold; width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div class="top-bar">
+    <button class="btn-icon" onclick="toggleHistory()">🕒 Lịch sử</button>
+    <span style="color: rgba(255,255,255,0.3); font-size: 12px; align-self: center;">cd:Bui</span>
+    <button class="btn-icon" onclick="toggleSoundPanel()">🎵 Âm thanh</button>
+</div>
+
+<div id="falling-layer"></div>
+
+<div class="mobile-wrapper">
+    <div class="container" id="main-container">
+        <div class="floral-border floral-top">🌸 cd:Bui 🌼 🍃 🌺 🌿 🌸 🌼 🍃 🌺 🌸 🌿 cd:Bui 🌼 🍃 🌺</div>
+        <div class="floral-border floral-bottom">🌸 cd:Bui 🌼 🍃 🌺 🌿 🌸 🌼 🍃 🌺 🌸 🌿 cd:Bui 🌼 🍃 🌺</div>
+
+        <div class="content" id="game-content">
+            <h1>Khảo Sát Tiệm Cận</h1>
+            <div class="math-box" id="math-formula"></div>
+            <div class="questions-layout" id="questions-area"></div>
+            <div class="controls">
+                <button class="btn btn-skip" id="btn-skip" onclick="handleSkip()">Bỏ qua / Đáp án</button>
+                <button class="btn btn-next" id="btn-next" onclick="nextQuestion()">Tiếp theo ➔</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="history-overlay" class="overlay-panel">
+    <div class="panel-header">
+        <button class="btn-back" onclick="toggleHistory()">🔙 Quay lại</button>
+        <h3 style="color: var(--primary);">Lịch Sử Làm Bài</h3>
+        <div style="width: 50px;"></div>
+    </div>
+    <div class="history-list" id="history-list-container"></div>
+</div>
+
+<div id="sound-overlay" class="overlay-panel">
+    <div class="panel-header">
+        <button class="btn-back" onclick="toggleSoundPanel()">🔙 Trang chủ</button>
+        <h3 style="color: var(--primary);">Âm Thanh</h3>
+        <div style="width: 50px;"></div>
+    </div>
+    <div class="sound-settings">
+        <div class="volume-control">
+            <span>🔉</span>
+            <input type="range" id="vol-slider" min="0" max="1" step="0.05" value="0.5" oninput="changeVolume(this.value)">
+            <span>🔊</span>
+        </div>
+        <button class="btn-mute-toggle" id="btn-mute" onclick="toggleMute()">🔊 Đang Bật Âm</button>
+    </div>
+</div>
+
+<script>
+    // --- KHỞI TẠO AUDIO (Giữ nguyên cấu trúc gọi file mp3 đồng cấp) ---
+    const bgm = new Audio('50838754-sad_guitar-359666.mp3'); bgm.loop = true;
+    const correctSfx = new Audio('cartoon-music-game-sfx-correct-game-show-alert-494539.mp3');
+    let isMuted = false, masterVolume = 0.5;
+    bgm.volume = masterVolume; correctSfx.volume = masterVolume;
+
+    let bgmStarted = false;
+    document.body.addEventListener('click', () => {
+        if(!bgmStarted && !isMuted) { bgm.play().catch(e => console.log(e)); bgmStarted = true; }
+    }, {once: true});
+
+    function changeVolume(val) { masterVolume = parseFloat(val); if(!isMuted) { bgm.volume = masterVolume; correctSfx.volume = masterVolume; } }
+    function toggleMute() {
+        isMuted = !isMuted; const btn = document.getElementById('btn-mute');
+        if(isMuted) { bgm.volume = 0; correctSfx.volume = 0; btn.innerText = '🔇 Đang Tắt Âm'; btn.style.background = 'var(--wrong)'; } 
+        else { bgm.volume = masterVolume; correctSfx.volume = masterVolume; if(bgmStarted) bgm.play(); btn.innerText = '🔊 Đang Bật Âm'; btn.style.background = 'var(--primary)'; }
+    }
+
+    // --- SOUND HỆ THỐNG GENTLE (BASS/MID) ---
+    const AudioCtx = window.AudioContext || window.webkitAudioContext; let actx;
+    function playSysSnd(type){
+        if(isMuted || masterVolume === 0) return; if(!actx) actx = new AudioCtx(); if(actx.state==='suspended') actx.resume();
+        const o=actx.createOscillator(), g=actx.createGain(); o.connect(g); g.connect(actx.destination); const n=actx.currentTime; const v=masterVolume*0.8;
+        if(type==='wrong'){ o.type='sine'; o.frequency.setValueAtTime(140,n); o.frequency.exponentialRampToValueAtTime(90,n+0.25); g.gain.setValueAtTime(0,n); g.gain.linearRampToValueAtTime(v*0.5,n+0.05); g.gain.exponentialRampToValueAtTime(0.01,n+0.3); o.start(n); o.stop(n+0.3); }
+        else if(type==='skip'){ o.type='sine'; o.frequency.setValueAtTime(180,n); o.frequency.linearRampToValueAtTime(130,n+0.25); g.gain.setValueAtTime(0,n); g.gain.linearRampToValueAtTime(v*0.4,n+0.05); g.gain.linearRampToValueAtTime(0,n+0.25); o.start(n); o.stop(n+0.25); }
+        else if(type==='next'||type==='ui'){ o.type='triangle'; o.frequency.setValueAtTime(260,n); g.gain.setValueAtTime(0,n); g.gain.linearRampToValueAtTime(v*0.4,n+0.04); g.gain.exponentialRampToValueAtTime(0.01,n+0.15); o.start(n); o.stop(n+0.15); }
+        else if(type==='done'){ o.type='triangle'; o.frequency.setValueAtTime(200,n); o.frequency.setValueAtTime(250,n+0.1); o.frequency.setValueAtTime(300,n+0.2); g.gain.setValueAtTime(0,n); g.gain.linearRampToValueAtTime(v*0.4,n+0.05); g.gain.exponentialRampToValueAtTime(0.01,n+0.5); o.start(n); o.stop(n+0.5); }
+    }
+
+    // --- HIỆU ỨNG HOA BUNG TRÊN ĐIỆN THOẠI (TỐI ƯU SỐ LƯỢNG HẠT) ---
+    function burstFlowersMobile(btnElement) {
+        const rect = btnElement.getBoundingClientRect();
+        const startX = rect.left + rect.width / 2; const startY = rect.top + rect.height / 2;
+        const emojis = ['🌸', '🌺', '🌼', '✨'];
+        for (let i = 0; i < 8; i++) { // Giảm xuống 8 hạt để điện thoại không bị khựng hình
+            const f = document.createElement('div'); f.innerText = emojis[Math.floor(Math.random()*emojis.length)];
+            f.style.position = 'fixed'; f.style.left = startX+'px'; f.style.top = startY+'px'; f.style.fontSize = '14px';
+            f.style.pointerEvents = 'none'; f.style.zIndex = '999'; f.style.transform = 'translate(-50%, -50%)';
+            document.body.appendChild(f);
+            const angle = Math.random()*Math.PI*2; const dist = Math.random()*40 + 20;
+            const tx = Math.cos(angle)*dist; const ty = Math.sin(angle)*dist;
+            const anim = f.animate([
+                { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+                { transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(0)`, opacity: 0 }
+            ], { duration: 500, easing: 'ease-out' });
+            anim.onfinish = () => f.remove();
+        }
+    }
+
+    // --- LÁ RƠI THƯ GIÃN (MẬT ĐỘ THẤP) ---
+    function createLeaf() {
+        const layer = document.getElementById('falling-layer'); const leaf = document.createElement('div'); leaf.className = 'leaf';
+        const items = ['🌸', '🍃', '✨']; leaf.innerText = items[Math.floor(Math.random() * items.length)];
+        leaf.style.left = Math.random() * 100 + 'vw'; leaf.style.animationDuration = (Math.random() * 3 + 5) + 's'; leaf.style.fontSize = '12px';
+        layer.appendChild(leaf); setTimeout(() => leaf.remove(), 8000); 
+    }
+    setInterval(createLeaf, 2000); // Tăng thời gian lên 2 giây mới rơi 1 lá để mượt máy
+
+    // --- LOGIC TOÁN HỌC ---
+    let currentData = null; let historyDB = []; 
+    const nz = (min,max) => { let v=0; while(v===0)v=Math.floor(Math.random()*(max-min+1))+min; return v; };
+    const fmt = (c,d,f) => { if(c===0)return''; let s=c>0?(f?'':'+'):'-',a=Math.abs(c),cs=(a===1&&d>0)?'':a,vs=d===2?'x^2':(d===1?'x':''); return `${s}${cs}${vs}`; };
+
+    function genData() {
+        const type = Math.random() > 0.5 ? 1 : 2; let tex = "", questions = []; let id = Date.now(); 
+        if(type === 1) {
+            let a=nz(-4,4), b=nz(-7,7), d=nz(-4,4); if(a*d-b===0)b++;
+            tex=`\\( y = \\frac{${fmt(a,1,true)}${fmt(b,0,false)}}{x${fmt(d,0,false)}} \\)`;
+            let tcD = `x = ${-d}`, tcN = `y = ${a}`;
+            let disD = [`x = ${d}`, `y = ${-d}`, `x = ${-d+1}`].filter(x=>x!==tcD).slice(0,2);
+            let disN = [`y = ${-a}`, `x = ${a}`, `y = ${d}`].filter(x=>x!==tcN).slice(0,2);
+            questions.push({ title: "Tiệm Cận Đứng", correct: tcD, options: [tcD, ...disD].sort(()=>Math.random()-0.5), isAnswered: false });
+            questions.push({ title: "Tiệm Cận Ngang", correct: tcN, options: [tcN, ...disN].sort(()=>Math.random()-0.5), isAnswered: false });
+        } else {
+            let a=nz(-2,2), b=nz(-3,3), c=nz(-3,3), e=nz(-3,3); if(a*e*e-b*e+c===0)c++;
+            tex=`\\( y = \\frac{${fmt(a,2,true)}${fmt(b,1,false)}${fmt(c,0,false)}}{x${fmt(e,0,false)}} \\)`;
+            let tcD = `x = ${-e}`; let disD = [`x = ${e}`, `y = ${-e}`].filter(x=>x!==tcD).slice(0,2);
+            let m=a, n=b-a*e; let ys = `y = ${fmt(m,1,true)}${fmt(n,0,false)}`; if(ys==="y = ")ys="y = 0";
+            let disX = [`y = ${fmt(m,1,true)}${fmt(b+a*e,0,false)}`, `y = ${fmt(-m,1,true)}${fmt(n,0,false)}`].map(x => x==="y = " ? "y = 0" : x).filter(x=>x!==ys).slice(0,2);
+            questions.push({ title: "Tiệm Cận Đứng", correct: tcD, options: [tcD, ...disD].sort(()=>Math.random()-0.5), isAnswered: false });
+            questions.push({ title: "Tiệm Cận Xiên", correct: ys, options: [ys, ...disX].sort(()=>Math.random()-0.5), isAnswered: false });
+        }
+        return { id, tex, questions };
+    }
+
+    function renderQuestion(data, isReview = false) {
+        currentData = data;
+        const contentDiv = document.getElementById('game-content');
+        contentDiv.style.animation = 'none'; contentDiv.offsetHeight;
+        contentDiv.style.animation = 'slideUpMobile 0.4s cubic-bezier(0.1, 0.8, 0.3, 1)';
+
+        document.getElementById('btn-next').style.display = 'none'; document.getElementById('btn-skip').style.display = 'block';
+        document.getElementById('math-formula').innerHTML = data.tex;
+        const area = document.getElementById('questions-area'); area.innerHTML = '';
+
+        data.questions.forEach((q, index) => {
+            const panel = document.createElement('div'); panel.className = 'question-panel';
+            panel.innerHTML = `<h3>${q.title}</h3>`;
+            const grid = document.createElement('div'); grid.className = 'options-grid';
+            q.options.forEach(opt => {
+                const b = document.createElement('button'); b.className = 'btn-opt'; b.innerHTML = `\\( ${opt} \\)`;
+                b.onclick = () => handleAnswer(b, index, opt); grid.appendChild(b);
+            });
+            panel.appendChild(grid); area.appendChild(panel);
+        });
+        if(isReview) currentData.questions.forEach(q => q.isAnswered = false);
+        else historyDB.unshift(JSON.parse(JSON.stringify(currentData)));
+        if(window.MathJax) MathJax.typesetPromise();
+    }
+
+    function handleAnswer(btn, panelIndex, selectedStr) {
+        let q = currentData.questions[panelIndex]; if (q.isAnswered) return; 
+        const panelBtns = btn.parentElement.querySelectorAll('.btn-opt');
+        if (selectedStr === q.correct) {
+            if(!isMuted) { correctSfx.currentTime = 0; correctSfx.play().catch(e => console.log(e)); }
+            btn.classList.add('correct'); burstFlowersMobile(btn);
+        } else {
+            playSysSnd('wrong'); btn.classList.add('wrong');
+            panelBtns.forEach(b => { if (b.innerHTML.includes(q.correct)) b.classList.add('correct'); });
+        }
+        panelBtns.forEach(b => b.disabled = true); q.isAnswered = true; checkAllDone();
+    }
+
+    function handleSkip() {
+        playSysSnd('skip'); const area = document.getElementById('questions-area');
+        currentData.questions.forEach((q, i) => {
+            if(!q.isAnswered) {
+                const btns = area.children[i].querySelectorAll('.btn-opt');
+                btns.forEach(b => { if (b.innerHTML.includes(q.correct)) b.classList.add('correct'); b.disabled = true; });
+                q.isAnswered = true;
+            }
+        });
+        checkAllDone(true);
+    }
+
+    function checkAllDone(isSkip = false) {
+        if (currentData.questions.every(q => q.isAnswered)) {
+            if(!isSkip) setTimeout(() => playSysSnd('done'), 300);
+            document.getElementById('btn-next').style.display = 'block'; document.getElementById('btn-skip').style.display = 'none';
+        }
+    }
+
+    function nextQuestion() { playSysSnd('next'); renderQuestion(genData()); }
+    function toggleHistory() { playSysSnd('ui'); const o = document.getElementById('history-overlay'); if(o.style.display === 'flex') o.style.display = 'none'; else { document.getElementById('sound-overlay').style.display = 'none'; o.style.display = 'flex'; renderHistoryList(); } }
+    function toggleSoundPanel() { playSysSnd('ui'); const o = document.getElementById('sound-overlay'); if(o.style.display === 'flex') o.style.display = 'none'; else { document.getElementById('history-overlay').style.display = 'none'; o.style.display = 'flex'; } }
+
+    function renderHistoryList() {
+        const list = document.getElementById('history-list-container'); list.innerHTML = '';
+        if(historyDB.length === 0) { list.innerHTML = '<p style="text-align:center; color:#666; font-size:14px;">Chưa có lịch sử.</p>'; return; }
+        historyDB.forEach((item, index) => {
+            const div = document.createElement('div'); div.className = 'history-item';
+            div.innerHTML = `<div style="max-width:70%; overflow:hidden;">Bài ${historyDB.length - index}: ${item.tex}</div><button class="btn-icon">Làm lại</button>`;
+            div.onclick = () => { toggleHistory(); renderQuestion(JSON.parse(JSON.stringify(item)), true); };
+            list.appendChild(div);
+        });
+        if(window.MathJax) MathJax.typesetPromise();
+    }
+
+    window.onload = () => { renderQuestion(genData()); };
+</script>
+</body>
+</html>
